@@ -1,0 +1,55 @@
+#!/usr/bin/env python
+# license removed for brevity
+import rospy
+from std_msgs.msg import Float64MultiArray
+import time
+
+def talker():
+    pub = rospy.Publisher('/youbot_base/joints_vel_controller/command', Float64MultiArray, queue_size=10)
+    rospy.init_node('talker', anonymous=True)
+    rate = rospy.Rate(10)  # 10hz
+    msg = Float64MultiArray()
+
+    lspeed = 0.5  # 直线行驶速度
+    aspeed = 0.5  # 角速度
+    radius_length = 5  # 扇形半径长度
+    radius_time = radius_length / lspeed  # 达到半径长度所需时间
+    
+    turn_time = 10 / aspeed  # 每次转弯所需时间
+
+    for _ in range(2):  # 重复2次来形成扇形
+        # 直线行驶到半径长度
+        start_time = time.time()
+        while time.time() - start_time < radius_time:
+            msg.data = [lspeed, lspeed, lspeed, lspeed]
+            rospy.loginfo(msg)
+            pub.publish(msg)
+            rate.sleep()
+
+        # 转弯
+        start_time = time.time()
+        while time.time() - start_time < turn_time:
+            msg.data = [0, -aspeed, aspeed, 0]
+            rospy.loginfo(msg)
+            pub.publish(msg)
+            rate.sleep()
+
+		# 直线行驶到半径长度
+		start_time = time.time()
+        while time.time() - start_time < radius_time:
+            msg.data = [lspeed, lspeed, lspeed, lspeed]
+            rospy.loginfo(msg)
+            pub.publish(msg)
+            rate.sleep()
+
+    # 停止
+    msg.data = [0, 0, 0, 0]
+    pub.publish(msg)
+    rate.sleep()
+
+if __name__ == '__main__':
+    try:
+        talker()
+    except rospy.ROSInterruptException:
+        pass
+
