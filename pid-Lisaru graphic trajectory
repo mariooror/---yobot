@@ -1,0 +1,94 @@
+#!/usr/bin/env python
+# license removed for brevity
+import rospy
+from std_msgs.msg import Float64MultiArray
+import time
+
+# PID控制器类
+class PIDController:
+    def __init__(self, kp, ki, kd):
+        self.kp = kp
+        self.ki = ki
+        self.kd = kd
+        self.previous_error = 0
+        self.integral = 0
+
+    def calculate(self, setpoint, measured_value):
+        error = setpoint - measured_value
+        self.integral += error
+        derivative = error - self.previous_error
+        output = self.kp * error + self.ki * self.integral + self.kd * derivative
+        self.previous_error = error
+        return output
+
+def talker():
+    pub = rospy.Publisher('/youbot_base/joints_vel_controller/command', Float64MultiArray, queue_size=10)
+    rospy.init_node('talker', anonymous=True)
+    rate = rospy.Rate(10) 
+
+    msg = Float64MultiArray()
+
+    x_speed_setpoint = 0.5  # x轴目标速度
+    y_speed_setpoint = 0.5  # y轴目标速度 # 直线行驶目标速度
+    aspeed_setpoint = 0.5  # 角速度目标速度
+
+    radius_length = 5  # 扇形半径长度
+    radius_time = radius_length / lspeed_setpoint  # 达到半径长度所需时间
+    turn_time = 10 / aspeed_setpoint  # 每次转弯所需时间
+
+# 初始化PID控制器
+    pid_x_speed = PIDController(kp=1.0, ki=0.1, kd=0.05)
+    pid_y_speed = PIDController(kp=1.0, ki=0.1, kd=0.05)
+
+# 使用PID控制器调整速度
+while not rospy.is_shutdown():
+    # 获取当前速度（示例，需要替换为实际速度获取方式）
+    current_speed_x =  kp * error_x + ki * error_sum_x + kd * delta_error_x  # 替换为获取当前直线速度的方法
+    current_speed_y =  kp * error_y + ki * error_sum_y + kd * delta_error_y
+    current_aspeed =aspeed_setpoint  # 替换为获取当前角速度的方法
+
+        # 计算PID调整值
+    x_speed_adjust = pid_x_speed.calculate(x_speed_setpoint, current_x_speed)
+    y_speed_adjust = pid_y_speed.calculate(y_speed_setpoint, current_y_speed)
+
+       # 计算各个轮子的转速	
+    speed1 = 1/R*(x_speed_adjust+y_speed_adjust) + aspeed_setpoint * R
+    speed2 = 1/R*(x_speed_adjust+y_speed_adjust) + aspeed_setpoint * R
+    speed3 = 1/R*(x_speed_adjust+y_speed_adjust) + aspeed_setpoint * R
+    speed4 = 1/R*(x_speed_adjust+y_speed_adjust) + aspeed_setpoint * R
+
+    for _ in range(2):  # 重复2次来形成扇形
+        # 直线行驶到半径长度
+        start_time = time.time()
+        while time.time() - start_time < radius_time:
+            msg.data = [speed1, speed2, speed3, speed4]
+            rospy.loginfo(msg)
+            pub.publish(msg)
+            rate.sleep()
+
+        # 转弯
+        start_time = time.time()
+        while time.time() - start_time < turn_time:
+            msg.data = [0, -aspeed_setpoint, aspeed_setpoint, 0]
+            rospy.loginfo(msg)
+            pub.publish(msg)
+            rate.sleep()
+
+		# 直线行驶到半径长度
+		start_time = time.time()
+        while time.time() - start_time < radius_time:
+            msg.data = [speed1, speed2, speed3, speed4]
+            rospy.loginfo(msg)
+            pub.publish(msg)
+            rate.sleep()
+
+    # 停止
+    msg.data = [0, 0, 0, 0]
+    pub.publish(msg)
+    rate.sleep()
+
+    if __name__ == '__main__':
+    try:
+        talker()
+    except rospy.ROSInterruptException:
+        pass
